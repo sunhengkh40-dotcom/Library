@@ -1,0 +1,16 @@
+.btn {
+  display: flex;
+  justify-content: center;
+}
+
+.table :global(.ant-table-cell) {
+  text-align: center;
+}
+.table :global(.ant-table-thead .ant-table-cell) {
+  text-align: center;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+}
