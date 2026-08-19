@@ -9,3 +9,4 @@ Schedule::command('borrowings:check-overdue')->dailyAt('00:01');
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+// Schedule::command('borrowings:mark-overdue')->dailyAt('00:01');

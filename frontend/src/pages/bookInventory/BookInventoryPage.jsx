@@ -67,7 +67,7 @@ const BookInventoryPage = () => {
       const params = new URLSearchParams();
       if (searchText) params.append("search", searchText);
       if (categoryFilter) params.append("category_id", categoryFilter);
-      
+
       params.append("per_page", 1000);
 
       const query = params.toString() ? `?${params.toString()}` : "";
@@ -282,12 +282,12 @@ const BookInventoryPage = () => {
         );
       },
     },
-    {
-      title: "Description",
-      dataIndex: "description",
-      key: "description",
-      ellipsis: true,
-    },
+    // {
+    //   title: "Description",
+    //   dataIndex: "description",
+    //   key: "description",
+    //   ellipsis: true,
+    // },
     {
       title: "Action",
       dataIndex: "action",
@@ -369,7 +369,6 @@ const BookInventoryPage = () => {
             </Space>
           </div>
 
-          {/* ✅ Stat Cards — ចំនួន Book ទាំងអស់ + Copies + Stock Status */}
           <Row gutter={16} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={12} md={6}>
               <Card>
@@ -523,7 +522,7 @@ const BookInventoryPage = () => {
             dataSource={books}
             loading={loading}
             bordered
-            scroll={{ x: 1300 }}
+            scroll={{ x: 1300, y: 480 }}
             pagination={{
               pageSize: 5,
               showSizeChanger: true,

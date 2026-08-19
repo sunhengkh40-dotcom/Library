@@ -28,7 +28,7 @@ import config from "./config";
 
 export const request = (url = "", method = "", data = {}) => {
   const isFormData = data instanceof FormData;
-  const token = localStorage.getItem("token"); // ← បន្ថែមបន្ទាត់នេះ
+  const token = localStorage.getItem("token"); 
 
   return axios({
     url: config.base_url + url,

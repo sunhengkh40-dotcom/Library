@@ -11,33 +11,66 @@ use Illuminate\Support\Facades\DB;
 class BorrowingController extends Controller
 {
     // GET /api/borrowings
+    // public function index(Request $request)
+    // {
+    //     $query = Borrowing::with(['book', 'member', 'fine']); // ← បន្ថែម 'fine'
+    
+    //     if ($request->filled('status')) {
+    //         $query->where('status', $request->status);
+    //     }
+    
+    //     if ($request->filled('member_id')) {
+    //         $query->where('member_id', $request->member_id);
+    //     }
+    
+    //     if ($request->filled('search')) {
+    //         $search = $request->search;
+    //         $query->where(function ($q) use ($search) {
+    //             $q->whereHas('book', fn ($bq) => $bq->where('title', 'like', "%{$search}%"))
+    //             ->orWhereHas('member', fn ($mq) => $mq->where('name', 'like', "%{$search}%"));
+    //         });
+    //     }
+    
+    //     $borrowings = $query->latest()->paginate($request->get('per_page', 10));
+    
+    //     return response()->json([
+    //         'total' => $borrowings->total(),
+    //         'list' => $borrowings->items(),
+    //     ]);
+    // }
     public function index(Request $request)
-    {
-        $query = Borrowing::with(['book', 'member', 'fine']); // ← បន្ថែម 'fine'
-    
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-    
-        if ($request->filled('member_id')) {
-            $query->where('member_id', $request->member_id);
-        }
-    
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->whereHas('book', fn ($bq) => $bq->where('title', 'like', "%{$search}%"))
-                ->orWhereHas('member', fn ($mq) => $mq->where('name', 'like', "%{$search}%"));
-            });
-        }
-    
-        $borrowings = $query->latest()->paginate($request->get('per_page', 10));
-    
-        return response()->json([
-            'total' => $borrowings->total(),
-            'list' => $borrowings->items(),
-        ]);
+{
+    $query = Borrowing::with(['book', 'member', 'fine']);
+
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
     }
+
+    if ($request->filled('member_id')) {
+        $query->where('member_id', $request->member_id);
+    }
+
+    // ✅ បន្ថែម logic នេះ
+    if ($request->boolean('overdue')) {
+        $query->where('status', 'borrowed')
+              ->whereDate('due_date', '<', now());
+    }
+
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            $q->whereHas('book', fn ($bq) => $bq->where('title', 'like', "%{$search}%"))
+              ->orWhereHas('member', fn ($mq) => $mq->where('name', 'like', "%{$search}%"));
+        });
+    }
+
+    $borrowings = $query->latest()->paginate($request->get('per_page', 10));
+
+    return response()->json([
+        'total' => $borrowings->total(),
+        'list' => $borrowings->items(),
+    ]);
+}
 
     // POST /api/borrowings -> create a new borrow record (checkout a book)
     public function store(Request $request)
@@ -101,42 +134,79 @@ class BorrowingController extends Controller
     }
 
     // POST /api/borrowings/{id}/return -> mark as returned, restore stock, calc fine
+    // public function returnBook($id)
+    // {
+    //     return DB::transaction(function () use ($id) {
+    //         $borrowing = Borrowing::with('book')->lockForUpdate()->findOrFail($id);
+
+    //         if ($borrowing->status === 'returned') {
+    //             return response()->json(['message' => 'This book was already returned'], 422);
+    //         }
+
+    //         $today = now();
+    //         $dueDate = $borrowing->due_date;
+    //         $lateDays = $today->gt($dueDate) ? $today->diffInDays($dueDate) : 0;
+    //         $fineAmount = $lateDays * 0.50; // 0.50 per late day, adjust as needed
+
+    //         $borrowing->update([
+    //             'return_date' => $today->toDateString(),
+    //             'status' => 'returned',
+    //             'fine_amount' => $fineAmount,
+    //         ]);
+
+    //         $borrowing->book->increment('available_copies');
+
+    //         if ($fineAmount > 0) {
+    //             Fine::create([
+    //                 'borrowing_id' => $borrowing->id,
+    //                 'amount' => $fineAmount,
+    //                 'status' => 'unpaid',
+    //             ]);
+    //         }
+
+    //         return response()->json([
+    //             'message' => 'Book returned successfully',
+    //             'data' => $borrowing->load(['book', 'member', 'fine']),
+    //         ]);
+    //     });
+    // }
     public function returnBook($id)
-    {
-        return DB::transaction(function () use ($id) {
-            $borrowing = Borrowing::with('book')->lockForUpdate()->findOrFail($id);
+{
+    return DB::transaction(function () use ($id) {
+        $borrowing = Borrowing::with('book')->lockForUpdate()->findOrFail($id);
 
-            if ($borrowing->status === 'returned') {
-                return response()->json(['message' => 'This book was already returned'], 422);
-            }
+        if ($borrowing->status === 'returned') {
+            return response()->json(['message' => 'This book was already returned'], 422);
+        }
 
-            $today = now();
-            $dueDate = $borrowing->due_date;
-            $lateDays = $today->gt($dueDate) ? $today->diffInDays($dueDate) : 0;
-            $fineAmount = $lateDays * 0.50; // 0.50 per late day, adjust as needed
+        $today = now()->startOfDay();
+        $dueDate = \Carbon\Carbon::parse($borrowing->due_date)->startOfDay();
 
-            $borrowing->update([
-                'return_date' => $today->toDateString(),
-                'status' => 'returned',
-                'fine_amount' => $fineAmount,
+        $lateDays = $today->gt($dueDate) ? abs($today->diffInDays($dueDate)) : 0;
+        $fineAmount = $lateDays * 0.50;
+
+        $borrowing->update([
+            'return_date' => $today->toDateString(),
+            'status' => 'returned',
+            'fine_amount' => $fineAmount,
+        ]);
+
+        $borrowing->book->increment('available_copies');
+
+        if ($fineAmount > 0) {
+            Fine::create([
+                'borrowing_id' => $borrowing->id,
+                'amount' => $fineAmount,
+                'status' => 'unpaid',
             ]);
+        }
 
-            $borrowing->book->increment('available_copies');
-
-            if ($fineAmount > 0) {
-                Fine::create([
-                    'borrowing_id' => $borrowing->id,
-                    'amount' => $fineAmount,
-                    'status' => 'unpaid',
-                ]);
-            }
-
-            return response()->json([
-                'message' => 'Book returned successfully',
-                'data' => $borrowing->load(['book', 'member', 'fine']),
-            ]);
-        });
-    }
+        return response()->json([
+            'message' => 'Book returned successfully',
+            'data' => $borrowing->load(['book', 'member', 'fine']),
+        ]);
+    });
+}
 
     // DELETE /api/borrowings/{id}
     public function destroy($id)
