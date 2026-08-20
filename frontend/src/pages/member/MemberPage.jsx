@@ -13,13 +13,19 @@ import {
   Popconfirm,
   Tag,
   Spin,
+  Tabs,
+  DatePicker,
+  TimePicker,
+  Empty,
 } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   EyeOutlined,
   DeleteOutlined,
+  BookOutlined,
 } from "@ant-design/icons";
+import dayjs from "dayjs";
 import { request } from "../../utils/request";
 
 const { Search } = Input;
@@ -29,6 +35,13 @@ const borrowingStatusColor = {
   returned: "green",
   overdue: "red",
   lost: "default",
+};
+
+const purposeColor = {
+  reading: "blue",
+  study: "purple",
+  research: "gold",
+  other: "default",
 };
 
 const MemberPage = () => {
@@ -49,6 +62,14 @@ const MemberPage = () => {
 
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState(undefined);
+
+  // ===== Visit / Reading log state =====
+  const [visits, setVisits] = useState([]);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+  const [visitModalOpen, setVisitModalOpen] = useState(false);
+  const [visitForm] = Form.useForm();
+  const [visitSubmitLoading, setVisitSubmitLoading] = useState(false);
+  const [books, setBooks] = useState([]);
 
   useEffect(() => {
     getMembers();
@@ -102,6 +123,7 @@ const MemberPage = () => {
     try {
       const res = await request(`members/${record.id}`, "get");
       setViewingMember(res);
+      await getVisits(record.id);
     } catch (err) {
       console.error(err);
       message.error("Failed to load member details");
@@ -157,6 +179,85 @@ const MemberPage = () => {
     } catch (err) {
       console.error(err?.response?.data);
       message.error(err?.response?.data?.message || "Failed to delete member");
+    }
+  };
+
+  // ===== Visit / Reading log handlers =====
+  const getVisits = async (memberId) => {
+    setVisitsLoading(true);
+    try {
+      const res = await request(`members/${memberId}/visits`, "get");
+      setVisits(res.list || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setVisitsLoading(false);
+    }
+  };
+
+  const openVisitModal = async () => {
+    visitForm.resetFields();
+    visitForm.setFieldsValue({
+      visit_date: dayjs(),
+      purpose: "reading",
+    });
+    setVisitModalOpen(true);
+
+    // ទាញ book list សម្រាប់ Select (ធ្វើតែពេលចាំបាច់)
+    if (books.length === 0) {
+      try {
+        const res = await request("books?per_page=1000", "get");
+        setBooks(res.list || []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleVisitCancel = () => {
+    setVisitModalOpen(false);
+    visitForm.resetFields();
+  };
+
+  const handleVisitOk = async () => {
+    try {
+      const values = await visitForm.validateFields();
+      setVisitSubmitLoading(true);
+
+      const payload = {
+        ...values,
+        visit_date: values.visit_date.format("YYYY-MM-DD"),
+        check_in_time: values.check_in_time
+          ? values.check_in_time.format("HH:mm")
+          : null,
+        check_out_time: values.check_out_time
+          ? values.check_out_time.format("HH:mm")
+          : null,
+      };
+
+      await request(`members/${viewingMember.id}/visits`, "post", payload);
+      message.success("Visit recorded successfully");
+
+      setVisitModalOpen(false);
+      visitForm.resetFields();
+      await getVisits(viewingMember.id);
+    } catch (err) {
+      if (err?.errorFields) return;
+      console.error(err?.response?.data);
+      message.error(err?.response?.data?.message || "Failed to record visit");
+    } finally {
+      setVisitSubmitLoading(false);
+    }
+  };
+
+  const handleDeleteVisit = async (visitId) => {
+    try {
+      await request(`visits/${visitId}`, "delete");
+      message.success("Visit record deleted");
+      await getVisits(viewingMember.id);
+    } catch (err) {
+      console.error(err);
+      message.error("Failed to delete visit record");
     }
   };
 
@@ -247,22 +348,53 @@ const MemberPage = () => {
     },
   ];
 
+  const visitColumns = [
+    { title: "Date", dataIndex: "visit_date", key: "visit_date" },
+    {
+      title: "Book",
+      key: "book",
+      render: (_, record) => record.book?.title || "In-library reading",
+    },
+    {
+      title: "Time",
+      key: "time",
+      render: (_, record) =>
+        record.check_in_time
+          ? `${record.check_in_time}${
+              record.check_out_time ? " - " + record.check_out_time : ""
+            }`
+          : "-",
+    },
+    {
+      title: "Purpose",
+      dataIndex: "purpose",
+      key: "purpose",
+      render: (p) => (
+        <Tag color={purposeColor[p] || "default"}>
+          {p?.charAt(0).toUpperCase() + p?.slice(1)}
+        </Tag>
+      ),
+    },
+    { title: "Notes", dataIndex: "notes", key: "notes", ellipsis: true },
+    {
+      title: "",
+      key: "action",
+      width: 50,
+      render: (_, record) => (
+        <Popconfirm
+          title="Delete this visit record?"
+          okText="Yes"
+          cancelText="No"
+          onConfirm={() => handleDeleteVisit(record.id)}
+        >
+          <Button size="small" danger icon={<DeleteOutlined />} />
+        </Popconfirm>
+      ),
+    },
+  ];
+
   return (
     <div>
-      {/* <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-        <Col>
-          <h2 style={{ marginBottom: 0 }}>សមាជិក (Members)</h2>
-          <p style={{ color: "#888", marginTop: 4 }}>
-            Manage library members and view borrowing history.
-          </p>
-        </Col>
-        <Col>
-          <Button type="primary" icon={<PlusOutlined />} onClick={showModal}>
-            បន្ថែមសមាជិក
-          </Button>
-        </Col>
-      </Row> */}
-
       <Row justify="space-between" style={{ marginBottom: 16 }}>
         <Col>
           <Space>
@@ -283,14 +415,19 @@ const MemberPage = () => {
           </Space>
         </Col>
         <Col>
-          <Search
-            placeholder="Search by name or code..."
-            allowClear
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onSearch={(v) => setSearchText(v)}
-            style={{ width: 260 }}
-          />
+          <Space>
+            <Search
+              placeholder="Search by name or code..."
+              allowClear
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onSearch={(v) => setSearchText(v)}
+              style={{ width: 260 }}
+            />
+            <Button type="primary" icon={<PlusOutlined />} onClick={showModal}>
+              Add Member
+            </Button>
+          </Space>
         </Col>
       </Row>
 
@@ -309,6 +446,7 @@ const MemberPage = () => {
         }}
       />
 
+      {/* ===== Add / Edit Member Modal ===== */}
       <Modal
         open={open}
         title={editingId ? "Edit Member" : "Add Member"}
@@ -367,11 +505,12 @@ const MemberPage = () => {
         </Form>
       </Modal>
 
+      {/* ===== View Member Modal (with Borrowing + Visit tabs) ===== */}
       <Modal
         open={viewOpen}
         title="Member Details"
         onCancel={() => setViewOpen(false)}
-        width={650}
+        width={750}
         footer={[
           <Button key="close" onClick={() => setViewOpen(false)}>
             Close
@@ -406,23 +545,135 @@ const MemberPage = () => {
                 </Tag>
               </div>
 
-              <div>
-                <strong>
-                  Borrowing History ({viewingMember.borrowings?.length || 0}):
-                </strong>
-                <Table
-                  style={{ marginTop: 8 }}
-                  size="small"
-                  rowKey="id"
-                  dataSource={viewingMember.borrowings || []}
-                  columns={borrowingColumns}
-                  pagination={false}
-                  locale={{ emptyText: "No borrowing history yet" }}
-                />
-              </div>
+              <Tabs
+                defaultActiveKey="borrowing"
+                items={[
+                  {
+                    key: "borrowing",
+                    label: `Borrowing History (${viewingMember.borrowings?.length || 0})`,
+                    children: (
+                      <Table
+                        size="small"
+                        rowKey="id"
+                        dataSource={viewingMember.borrowings || []}
+                        columns={borrowingColumns}
+                        pagination={false}
+                        locale={{ emptyText: "No borrowing history yet" }}
+                      />
+                    ),
+                  },
+                  {
+                    key: "visits",
+                    label: `Visit / Reading Log (${visits.length})`,
+                    children: (
+                      <>
+                        <div style={{ textAlign: "right", marginBottom: 8 }}>
+                          <Button
+                            size="small"
+                            type="primary"
+                            icon={<BookOutlined />}
+                            onClick={openVisitModal}
+                          >
+                            Record Visit
+                          </Button>
+                        </div>
+                        <Table
+                          size="small"
+                          rowKey="id"
+                          dataSource={visits}
+                          columns={visitColumns}
+                          loading={visitsLoading}
+                          pagination={{ pageSize: 5 }}
+                          locale={{
+                            emptyText: (
+                              <Empty description="No visit records yet" />
+                            ),
+                          }}
+                        />
+                      </>
+                    ),
+                  },
+                ]}
+              />
             </Space>
           )
         )}
+      </Modal>
+
+      {/* ===== Record Visit Modal ===== */}
+      <Modal
+        open={visitModalOpen}
+        title="Record Library Visit"
+        onOk={handleVisitOk}
+        onCancel={handleVisitCancel}
+        footer={[
+          <Button key="back" onClick={handleVisitCancel}>
+            Cancel
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            loading={visitSubmitLoading}
+            onClick={handleVisitOk}
+          >
+            Save
+          </Button>,
+        ]}
+      >
+        <Form form={visitForm} layout="vertical" requiredMark="optional">
+          <Form.Item
+            name="visit_date"
+            label="Visit Date"
+            rules={[{ required: true, message: "Visit date is required" }]}
+          >
+            <DatePicker style={{ width: "100%" }} format="YYYY-MM-DD" />
+          </Form.Item>
+
+          <Form.Item
+            name="book_id"
+            label="Book (optional — in-library reading)"
+          >
+            <Select
+              showSearch
+              allowClear
+              placeholder="Select a book, if reading a specific title"
+              optionFilterProp="label"
+              options={books.map((b) => ({ label: b.title, value: b.id }))}
+            />
+          </Form.Item>
+
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="check_in_time" label="Check-in Time">
+                <TimePicker style={{ width: "100%" }} format="HH:mm" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="check_out_time" label="Check-out Time">
+                <TimePicker style={{ width: "100%" }} format="HH:mm" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="purpose"
+            label="Purpose"
+            rules={[{ required: true, message: "Purpose is required" }]}
+          >
+            <Select
+              options={[
+                { label: "Reading", value: "reading" },
+                { label: "Study", value: "study" },
+                { label: "Research", value: "research" },
+                { label: "Other", value: "other" },
+              ]}
+            />
+          </Form.Item>
+
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={2} placeholder="Optional notes..." />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

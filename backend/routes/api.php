@@ -9,6 +9,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\FineController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ReportController;
 
 
 // ================ Public routes មិនត្រូវការ Login ​================
@@ -33,4 +34,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/borrowings/{id}/return', [BorrowingController::class, 'returnBook']);
 
+});
+Route::prefix('reports')->group(function () {
+    Route::get('/stock', [ReportController::class, 'stock']);
+    Route::get('/borrowings', [ReportController::class, 'borrowings']);
+    Route::get('/fines', [ReportController::class, 'fines']);
 });
