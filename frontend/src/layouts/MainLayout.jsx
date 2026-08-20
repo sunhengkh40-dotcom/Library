@@ -17,7 +17,7 @@ import {
 import { Layout, Menu, Avatar, Badge, Dropdown, Button } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import styles from "../layouts/MainLayout.module.css";
-// ⚠️ ត្រូវប្តូរ path នេះតាម folder depth ជាក់ស្តែង
+
 import { request } from "../utils/request";
 
 const { Header, Content, Sider } = Layout;
@@ -29,11 +29,13 @@ const SIDER_COLLAPSED_WIDTH = 80;
 const allMenuItems = [
   { key: "/", icon: <AppstoreOutlined />, label: "Dashboard" },
   { key: "/bookInventory", icon: <BookOutlined />, label: "Books" },
-  { key: "/member", icon: <TeamOutlined />, label: "Members" },
+  // { key: "/member", icon: <TeamOutlined />, label: "Members" },
   { key: "/borrowing", icon: <SwapOutlined />, label: "Borrowings" },
   { key: "/fine", icon: <DollarOutlined />, label: "Fines" },
   { key: "/categories", icon: <TagsOutlined />, label: "Categories" },
+  { key: "/reports", icon: <TagsOutlined />, label: "Report" },
   { key: "/users", icon: <UserOutlined />, label: "Users", adminOnly: true },
+
   // { key: "/settings", icon: <SettingOutlined />, label: "Settings" },
 ];
 

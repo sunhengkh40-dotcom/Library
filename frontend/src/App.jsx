@@ -14,6 +14,7 @@ import LoginPage from "./pages/login/LoginPage";
 import RegisterPage from "./pages/register/RegisterPage";
 import PageNotFound from "./components/404/PageNotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ReportPage from "./pages/report/ReportPage";
 
 function App() {
   return (
@@ -38,6 +39,7 @@ function App() {
           <Route path="categories" element={<CategoryPage />} />
           <Route path="users" element={<UserPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="reports" element={<ReportPage />} />
         </Route>
 
         <Route path="*" element={<PageNotFound />} />

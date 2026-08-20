@@ -66,7 +66,7 @@ const BorrowingPage = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [form] = Form.useForm();
 
-  // ---------- Invoice Modal state ----------
+  // ---------- Invoice Modal state ---------- //
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [invoiceData, setInvoiceData] = useState(null);
 
@@ -137,7 +137,7 @@ const BorrowingPage = () => {
       borrow_date: dayjs(),
       due_date: dayjs().add(7, "day"),
     });
-    setOpen(true);
+    setOpen(true);F
   };
 
   const handleCancel = () => {
@@ -210,7 +210,7 @@ const BorrowingPage = () => {
       setOpen(false);
       form.resetFields();
       setInvoiceOpen(true);
-
+      setLoading();
       await getBorrowings();
       await getBooks();
     } catch (err) {
