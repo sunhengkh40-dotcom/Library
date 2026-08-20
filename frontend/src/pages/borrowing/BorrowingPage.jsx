@@ -137,7 +137,8 @@ const BorrowingPage = () => {
       borrow_date: dayjs(),
       due_date: dayjs().add(7, "day"),
     });
-    setOpen(true);F
+    setOpen(true);
+    F;
   };
 
   const handleCancel = () => {
@@ -710,6 +711,7 @@ const BorrowingPage = () => {
             `Showing ${range[0]} to ${range[1]} of ${t} entries`,
         }}
       />
+      <div></div>
     </div>
   );
 };
