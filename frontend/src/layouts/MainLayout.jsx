@@ -17,6 +17,7 @@ import {
 import { Layout, Menu, Avatar, Badge, Dropdown, Button } from "antd";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import styles from "../layouts/MainLayout.module.css";
+import logo from "../assets/logo.png";
 
 import { request } from "../utils/request";
 
@@ -91,8 +92,8 @@ const MainLayout = () => {
         <div className={styles.brand}>
           {!collapsed && (
             <>
-              <h2>LMS Admin</h2>
-              <p>Central Library</p>
+              <img src={logo} alt="image" />
+              {/* <p>Central Library</p> */}
             </>
           )}
         </div>
