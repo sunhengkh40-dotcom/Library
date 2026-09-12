@@ -70,7 +70,7 @@ const ReportPage = () => {
       const query = new URLSearchParams(params).toString();
 
       const [stock, borrowings, fines] = await Promise.all([
-        request("reports/stock", "get"),
+        request(`reports/stock?${query}`, "get"),
         request(`reports/borrowings?${query}`, "get"),
         request(`reports/fines?${query}`, "get"),
       ]);
@@ -330,7 +330,7 @@ const ReportPage = () => {
             optionType="button"
             buttonStyle="solid"
           >
-            <Radio.Button value="daily">Daily</Radio.Button>
+            <Radio.Button value="daily">Today</Radio.Button>
             <Radio.Button value="monthly">Monthly</Radio.Button>
             <Radio.Button value="custom">Custom</Radio.Button>
           </Radio.Group>

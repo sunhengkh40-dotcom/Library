@@ -138,7 +138,7 @@ const HomePage = () => {
         request("books?per_page=1000", "get"),
         request("borrowings?per_page=10", "get"),
         request("fines?per_page=1000", "get"),
-        request("borrowings?overdue=true", "get"),
+        request("borrowings?status=overdue", "get"),
         request("members?per_page=1", "get"),
         request("categories?per_page=1", "get"),
       ]);
@@ -185,9 +185,7 @@ const HomePage = () => {
   };
 
   return (
-    <div
-      style={{  minHeight: "100%" }}
-    >
+    <div style={{ minHeight: "100%" }}>
       <Title level={3} style={{ margin: 0, color: COLORS.navy }}>
         Dashboard
       </Title>
