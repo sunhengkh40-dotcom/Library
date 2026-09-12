@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laravel-api
+  namespace: laravel-k8s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: laravel-api
+  template:
+    metadata:
+      labels:
+        app: laravel-api
+    spec:
+      containers:
+        - name: laravel-api
+          image: laravel-api:local
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 9000
+          envFrom:
+            - secretRef:
+                name: laravel-env
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: laravel-api
+  namespace: laravel-k8s
+spec:
+  selector:
+    app: laravel-api
+  ports:
+    - port: 9000
+      targetPort: 9000

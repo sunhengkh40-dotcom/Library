@@ -11,12 +11,12 @@ use Carbon\Carbon;
 class ReportController extends Controller
 {
     // GET /api/reports/stock
-   public function stock(Request $request)
+    public function stock(Request $request)
     {
         [$from, $to] = $this->resolveDateRange($request);
- 
+
         $books = Book::with('category')->get();
- 
+
         $list = $books->map(function ($book) {
             return [
                 'id' => $book->id,
@@ -28,13 +28,13 @@ class ReportController extends Controller
                 'added_at' => $book->created_at->toDateString(),
             ];
         });
- 
+
         // សៀវភៅ (title) ដែលបង្កើតថ្មីក្នុងចន្លោះកាលបរិច្ឆេទ from-to
         $newBooks = $books->filter(function ($book) use ($from, $to) {
             $createdDate = $book->created_at->toDateString();
             return $createdDate >= $from && $createdDate <= $to;
         });
- 
+
         $newBooksList = $newBooks->map(function ($book) {
             return [
                 'id' => $book->id,
@@ -44,7 +44,7 @@ class ReportController extends Controller
                 'added_at' => $book->created_at->format('Y-m-d H:i'),
             ];
         })->values();
- 
+
         return response()->json([
             'from' => $from,
             'to' => $to,
@@ -58,24 +58,39 @@ class ReportController extends Controller
             'new_books' => $newBooksList,
         ]);
     }
+
     // GET /api/reports/borrowings?from=2026-08-01&to=2026-08-31
     public function borrowings(Request $request)
     {
         [$from, $to] = $this->resolveDateRange($request);
 
-        $query = Borrowing::with(['book', 'member'])
-            ->whereBetween('borrow_date', [$from, $to]);
+        // ព្រឹត្តិការណ៍ក្នុងចន្លោះកាលបរិច្ឆេទ (ខ្ចី/សង ក្នុងអំឡុងពេលនោះ)
+        $periodBorrowings = Borrowing::with(['book', 'member'])
+            ->whereBetween('borrow_date', [$from, $to])
+            ->get();
 
-        $borrowings = $query->get();
+        // Overdue ជា "ស្ថានភាពបច្ចុប្បន្ន" — មិនគិតថាខ្ចីតាំងពីពេលណា
+        // ដូច្នេះមិន filter តាម borrow_date ទេ ដើម្បីកុំឲ្យលាក់ record ចាស់ដែលនៅតែ overdue
+        $overdueBorrowings = Borrowing::with(['book', 'member'])
+            ->where('status', 'overdue')
+            ->get();
+
+        // បញ្ចូល overdue ចូល list ដោយមិនស្ទួន (បើ borrow_date របស់វាធ្លាក់ក្នុងចន្លោះស្រាប់)
+        $combined = $periodBorrowings
+            ->merge($overdueBorrowings)
+            ->unique('id')
+            ->values();
 
         return response()->json([
             'from' => $from,
             'to' => $to,
-            'total_borrowings' => $borrowings->count(),
-            'total_returned' => $borrowings->where('status', 'returned')->count(),
-            'total_overdue' => $borrowings->where('status', 'overdue')->count(),
-            'total_active' => $borrowings->where('status', 'borrowed')->count(),
-            'list' => $borrowings->map(fn ($b) => [
+            // ✅ total_borrowings ឥឡូវរាប់បញ្ចូល overdue ទាំងអស់ដែរ
+            // (ទោះ borrow_date របស់វាស្ថិតក្រៅចន្លោះកាលបរិច្ឆេទ ព្រោះគាត់នៅតែជាបំណុលសកម្ម)
+            'total_borrowings' => $combined->count(),
+            'total_returned' => $periodBorrowings->where('status', 'returned')->count(),
+            'total_overdue' => $overdueBorrowings->count(),
+            'total_active' => $combined->where('status', 'borrowed')->count(),
+            'list' => $combined->map(fn ($b) => [
                 'id' => $b->id,
                 'book' => $b->book->title ?? '-',
                 'member' => $b->member->name ?? '-',
@@ -92,10 +107,11 @@ class ReportController extends Controller
     {
         [$from, $to] = $this->resolveDateRange($request);
 
+        // ត្រូវ filter តាមថ្ងៃដែល Fine ត្រូវបានបង្កើត (created_at)
+        // មិនមែនតាម borrow_date របស់ borrowing ដែលទាក់ទងទេ ព្រោះ Fine ភាគច្រើន
+        // កើតឡើងពេល "return យឺត" ដែលអាចយូរច្រើនថ្ងៃក្រោយ borrow_date ដើម
         $query = Fine::with(['borrowing.book', 'borrowing.member'])
-            ->whereHas('borrowing', function ($q) use ($from, $to) {
-                $q->whereBetween('borrow_date', [$from, $to]);
-            });
+            ->whereBetween('created_at', ["{$from} 00:00:00", "{$to} 23:59:59"]);
 
         $fines = $query->get();
 
